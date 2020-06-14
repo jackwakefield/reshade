@@ -208,11 +208,9 @@ void reshade::d3d9::runtime_d3d9::on_present()
 	_drawcalls = _buffer_detection->total_drawcalls();
 
 #if RESHADE_DEPTH
-	// Disable INTZ replacement while high network activity is detected, since the option is not available in the UI then, but artifacts may occur without it
-	_buffer_detection->disable_intz = _disable_intz || _has_high_network_activity;
+	_buffer_detection->disable_intz = _disable_intz;
 
-	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depth_surface_override));
+	update_depth_texture_bindings(_buffer_detection->find_best_depth_surface(_filter_aspect_ratio ? _width : 0, _height, _depth_surface_override));
 #endif
 
 	_app_state.capture();
@@ -1138,12 +1136,6 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		return;
 
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
-
 	assert(!_reset_buffer_detection);
 
 	// Do NOT reset tracker within state block capture scope, since the state block may otherwise bind the replacement depth-stencil after it has been destroyed during that reset
@@ -1216,9 +1208,6 @@ void reshade::d3d9::runtime_d3d9::draw_depth_debug_menu(buffer_detection &tracke
 
 void reshade::d3d9::runtime_d3d9::update_depth_texture_bindings(com_ptr<IDirect3DSurface9> depth_surface)
 {
-	if (_has_high_network_activity)
-		depth_surface.reset();
-
 	if (depth_surface == _depth_surface)
 		return;
 

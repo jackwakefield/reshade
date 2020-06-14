@@ -247,8 +247,7 @@ void reshade::opengl::runtime_gl::on_present()
 	_app_state.capture();
 
 #if RESHADE_DEPTH
-	update_depth_texture_bindings(_has_high_network_activity ? buffer_detection::depthstencil_info { 0 } :
-		_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
+	update_depth_texture_bindings(_buffer_detection.find_best_depth_texture(_use_aspect_ratio_heuristics ? _width : 0, _height, _depth_source_override));
 #endif
 
 	// Copy back buffer to RBO
@@ -1243,12 +1242,6 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		return;
 
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
-
 	if (ImGui::Checkbox("Use aspect ratio heuristics", &_use_aspect_ratio_heuristics))
 		runtime::save_config();
 
@@ -1262,7 +1255,7 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 			continue; // Skip invalid entries
 
 		char label[512] = "";
-		sprintf_s(label, "%s0x%08x", (depth_source == _depth_source && !_has_high_network_activity ? "> " : "  "), depth_source);
+		sprintf_s(label, "%s0x%08x", (depth_source == _depth_source ? "> " : "  "), depth_source);
 
 		if (bool value = _depth_source_override == depth_source;
 			ImGui::Checkbox(label, &value))
@@ -1281,30 +1274,6 @@ void reshade::opengl::runtime_gl::draw_depth_debug_menu()
 
 void reshade::opengl::runtime_gl::update_depth_texture_bindings(buffer_detection::depthstencil_info info)
 {
-	if (_has_high_network_activity)
-	{
-		_depth_source = 0;
-		_has_depth_texture = false;
-		_copy_depth_source = false;
-
-		if (_tex[TEX_DEPTH])
-		{
-			glDeleteTextures(1, &_tex[TEX_DEPTH]);
-			_tex[TEX_DEPTH] = 0;
-
-			for (const auto &tex : _textures)
-			{
-				if (tex.impl == nullptr ||
-					tex.impl_reference != texture_reference::depth_buffer)
-					continue;
-				const auto tex_impl = static_cast<opengl_tex_data *>(tex.impl);
-
-				tex_impl->id[0] = tex_impl->id[1] = 0;
-			}
-		}
-		return;
-	}
-
 	const GLuint source = info.obj | (info.target == GL_RENDERBUFFER ? 0x80000000 : 0);
 	if (_tex[TEX_DEPTH] &&
 		source == _depth_source)

@@ -267,8 +267,7 @@ void reshade::d3d10::runtime_d3d10::on_present()
 	_drawcalls = _buffer_detection->total_drawcalls();
 
 #if RESHADE_DEPTH
-	update_depth_texture_bindings(_has_high_network_activity ? nullptr :
-		_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
+	update_depth_texture_bindings(_buffer_detection->find_best_depth_texture(_filter_aspect_ratio ? _width : 0, _height, _depth_texture_override));
 #endif
 
 	_app_state.capture();
@@ -1319,12 +1318,6 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 	if (!ImGui::CollapsingHeader("Depth Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		return;
 
-	if (_has_high_network_activity)
-	{
-		ImGui::TextColored(ImColor(204, 204, 0), "High network activity discovered.\nAccess to depth buffers is disabled to prevent exploitation.");
-		return;
-	}
-
 	bool modified = false;
 	modified |= ImGui::Checkbox("Use aspect ratio heuristics", &_filter_aspect_ratio);
 	modified |= ImGui::Checkbox("Copy depth buffer before clear operations", &tracker.preserve_depth_buffers);
@@ -1397,9 +1390,6 @@ void reshade::d3d10::runtime_d3d10::draw_depth_debug_menu(buffer_detection &trac
 
 void reshade::d3d10::runtime_d3d10::update_depth_texture_bindings(com_ptr<ID3D10Texture2D> depth_texture)
 {
-	if (_has_high_network_activity)
-		depth_texture.reset();
-
 	if (depth_texture == _depth_texture)
 		return;
 
